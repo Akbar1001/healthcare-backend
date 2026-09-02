@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
@@ -33,33 +34,30 @@ class MappingListCreateView(APIView):
             context={"request": request},
         )
 
-        if serializer.is_valid():
-            try:
-                mapping = serializer.save()
+        if not serializer.is_valid():
+            return Response(
+                {"errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-                response_serializer = PatientDoctorMappingSerializer(
-                    mapping
-                )
+        try:
+            mapping = serializer.save()
+        except IntegrityError:
+            return Response(
+                {
+                    "error": (
+                        "This doctor is already assigned "
+                        "to this patient."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-                return Response(
-                    response_serializer.data,
-                    status=status.HTTP_201_CREATED,
-                )
-
-            except Exception:
-                return Response(
-                    {
-                        "error": (
-                            "This doctor is already assigned "
-                            "to this patient."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        response_serializer = PatientDoctorMappingSerializer(mapping)
 
         return Response(
-            {"errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
         )
 
 
